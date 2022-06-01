@@ -58,7 +58,6 @@ class InvertedResidualBlock(Layer):
 
         self.sequential_block.add(Conv2D(filters=self.num_out_channels, kernel_size=1, strides=1, use_bias=False))
         self.sequential_block.add(BatchNormalization())
-        self.sequential_block.add(ReLU(max_value=6.0))
 
     def call(self, data, **kwargs):
 
