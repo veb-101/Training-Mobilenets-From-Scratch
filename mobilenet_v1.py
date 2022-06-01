@@ -7,8 +7,6 @@ from tensorflow.keras.layers import (
     ReLU,
     Conv2D,
     DepthwiseConv2D,
-    GlobalAveragePooling2D,
-    GlobalMaxPooling2D,
     Dense,
     Flatten,
     Dropout,
@@ -53,84 +51,6 @@ class DepthWise_PointWise_Layer(Layer):
         return out
 
 
-def create_mobilenet_v1_manual(
-    input_shape=(224, 224, 3),
-    alpha=1.0,
-    num_classes=1000,
-    pooling="avg",
-    dropout_rate=0.3,
-    use_dense=True,
-):
-
-    dp_01 = DepthWise_PointWise_Layer(out_channels=64, dw_stride=1, alpha=alpha, name="DW_PW__01")
-    dp_02 = DepthWise_PointWise_Layer(out_channels=128, dw_stride=2, alpha=alpha, name="DW_PW__02")
-    dp_03 = DepthWise_PointWise_Layer(out_channels=128, dw_stride=1, alpha=alpha, name="DW_PW__03")
-    dp_04 = DepthWise_PointWise_Layer(out_channels=256, dw_stride=2, alpha=alpha, name="DW_PW__04")
-    dp_05 = DepthWise_PointWise_Layer(out_channels=256, dw_stride=1, alpha=alpha, name="DW_PW__05")
-    dp_06 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=2, alpha=alpha, name="DW_PW__06")
-    dp_07 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=1, alpha=alpha, name="DW_PW__07")
-    dp_08 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=1, alpha=alpha, name="DW_PW__08")
-    dp_09 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=1, alpha=alpha, name="DW_PW__09")
-    dp_10 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=1, alpha=alpha, name="DW_PW__10")
-    dp_11 = DepthWise_PointWise_Layer(out_channels=512, dw_stride=1, alpha=alpha, name="DW_PW__11")
-    dp_12 = DepthWise_PointWise_Layer(out_channels=1024, dw_stride=2, alpha=alpha, name="DW_PW__12")
-    dp_13 = DepthWise_PointWise_Layer(out_channels=1024, dw_stride=1, alpha=alpha, name="DW_PW__13")
-
-    input_layer = Input(shape=input_shape)
-
-    out = Conv2D(
-        channels=int(32 * alpha),
-        kernel_size=3,
-        strides=2,
-        padding="same",
-        use_bias=False,
-        name="Conv_0",
-    )(input_layer)
-
-    out = BatchNormalization(name="BN_0")(out)
-    out = ReLU(name="ReLU_0")(out)
-
-    dp_01_out = dp_01(out)
-    dp_02_out = dp_02(dp_01_out)
-    dp_03_out = dp_03(dp_02_out)
-    dp_04_out = dp_04(dp_03_out)
-    dp_05_out = dp_05(dp_04_out)
-    dp_06_out = dp_06(dp_05_out)
-
-    # Repeated Layers
-    dp_07_out = dp_07(dp_06_out)
-    dp_08_out = dp_08(dp_07_out)
-    dp_09_out = dp_09(dp_08_out)
-    dp_10_out = dp_10(dp_09_out)
-    dp_11_out = dp_11(dp_10_out)
-
-    dp_12_out = dp_12(dp_11_out)
-    dp_13_out = dp_13(dp_12_out)
-
-    if use_dense:
-        pooling_keep_dims = False
-    else:
-        pooling_keep_dims = True
-
-    if pooling == "avg":
-        pooling = GlobalAveragePooling2D(keepdims=pooling_keep_dims)(out)
-    else:
-        pooling = GlobalMaxPooling2D(keepdims=pooling_keep_dims)(out)
-
-    drop_out = Dropout(rate=dropout_rate)(pooling)
-
-    if use_dense:
-        final = Dense(units=num_classes, activation="softmax", name="FC")(drop_out)
-
-    else:
-        conv_out = Conv2D(channels=num_classes, kernel_size=1, strides=1, activation="softmax")(drop_out)
-        final = Flatten()(conv_out)
-
-    mobilenet_v1_model = Model(inputs=input_layer, outputs=final, name="MobileNet-V1")
-
-    return mobilenet_v1_model
-
-
 def create_mobilenet_v1(
     input_shape=(224, 224, 3),
     alpha=1.0,
@@ -167,7 +87,6 @@ def create_mobilenet_v1(
         out = DepthWise_PointWise_Layer(
             out_channels=num_out_channels,
             dw_stride=dw_stride,
-            alpha=alpha,
             name=f"DW_PW__{block_id:02}",
         )(out)
 
@@ -189,3 +108,7 @@ if __name__ == "__main__":
 
     model = create_mobilenet_v1(alpha=1.0, pooling="average", use_dense=False)
     model.summary()
+
+    # for alpha in [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]:
+    #     model = create_mobilenet_v1(alpha=alpha, pooling="average", use_dense=False)
+    #     print(f"Alpha: {alpha} --->", model.count_params())
