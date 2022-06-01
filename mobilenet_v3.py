@@ -33,9 +33,11 @@ class SqeezeExcitation(Layer):
     def __init__(self, num_channels=64, use_bias=False, **kwargs):
         super().__init__(**kwargs)
 
+        # Layer attributes
         self.num_channels = num_channels
         self.reduced_out_channels = _make_divisible(self.num_channels // 4)
-        # print("SE_reduced:", self.reduced_out_channels)
+
+        # Layers
         self.global_avg_pooling = GlobalAveragePooling2D(keepdims=True, name="squeeze")
         self.dimension_reduction = Conv2D(filters=self.reduced_out_channels, kernel_size=1, activation="relu", use_bias=use_bias)
         self.dimension_expansion = Conv2D(filters=self.num_channels, kernel_size=1, use_bias=use_bias)
@@ -91,8 +93,6 @@ class InvertedResidualBlock(Layer):
         self.activation_fn = ReLU if self.activation_string == "RE" else HardSwish
         self.residual_connection = True if (self.in_channels == self.num_out_channels) and (self.depthwise_stride == 1) else False
 
-        # print("expansion size:", self.expansion_size)
-        # print("in_channels:", self.in_channels)
         # ====================================================================================================================
         # # ================================================== Build Layers ==================================================
         # ====================================================================================================================
@@ -108,13 +108,10 @@ class InvertedResidualBlock(Layer):
         self.sequential_block.add(self.activation_fn())
 
         if self.apply_SE:
-            # print("SE_channels:", self.expansion_size)
             self.sequential_block.add(SqeezeExcitation(num_channels=self.expansion_size, use_bias=True))
 
         self.sequential_block.add(Conv2D(filters=self.num_out_channels, kernel_size=1, strides=1, use_bias=False))
         self.sequential_block.add(BatchNormalization())
-        # print("output_channels:", self.num_out_channels)
-        # print("----------------------")
 
     def call(self, data, **kwargs):
 
@@ -224,10 +221,6 @@ def create_mobilenet_v3(
         true_expansion_ratio = t / prev_c
         true_expansion_size = _make_divisible(input_channels * true_expansion_ratio)
 
-        # print("in_channels:", input_channels)
-        # print("expansion ratio:", true_expansion_ratio)
-        # print("expansion size", true_expansion_size)
-
         out = InvertedResidualBlock(
             kernel_size=k,
             in_channels=input_channels,
@@ -252,15 +245,14 @@ def create_mobilenet_v3(
     out = Conv2D(filters=last_conv_channel, kernel_size=1, strides=1, use_bias=False)(out)
     out = BatchNormalization()(out)
     out = HardSwish()(out)
+
     if use_SE:
         out = SqeezeExcitation(num_channels=last_conv_channel, use_bias=False)(out)
-    # print("out_channels:last_conv_ch::", last_conv_channel)
     # ========================================================================================
     out = pooling_layer(out)
     # ========================================================================================
     out = Conv2D(filters=last_point_channel, kernel_size=1, strides=1, use_bias=True)(out)
     out = HardSwish()(out)
-    # print("out_channels:last_point_ch::", last_point_channel)
 
     drop_out = Dropout(rate=dropout_rate)(out)
 
@@ -277,64 +269,11 @@ def create_mobilenet_v3(
 
 if __name__ == "__main__":
 
-    for alpha in [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]:
-        # model = create_mobilenet_v3(large=True, alpha=alpha)
-        model = create_mobilenet_v3(large=False, alpha=alpha)
-        print(f"Alpha: {alpha} --->", model.count_params())
+    alpha = 1.0
+    model = create_mobilenet_v3(large=False, alpha=alpha)
+    print(f"Alpha: {alpha} --->", model.count_params())
 
-    # alpha = 0.6
-    # model = create_mobilenet_v3(large=False, alpha=alpha)
-    # print(f"Alpha: {alpha} --->", model.count_params())
-
-
-# v3_large
-# # pytorch
-# ===========================================================================
-# Total params: 5,483,032
-# Trainable params: 5,483,032
-# Non-trainable params: 0
-# ===========================================================================
-# # tensorflow
-# ==================================================================================================
-# Total params: 5,507,432
-# Trainable params: 5,483,032
-# Non-trainable params: 24,400
-# __________________________________________________________________________________________________
-
-# # Mine
-# =================================================================
-# Total params: 5,507,432
-# Trainable params: 5,483,032
-# Non-trainable params: 24,400
-# _________________________________________________________________
-
-
-# v3_small
-# # pytorch
-# ===========================================================================
-# Total params: 2,542,856
-# Trainable params: 2,542,856
-# Non-trainable params: 0
-# ===========================================================================
-# # tensorflow
-# ==================================================================================================
-# Total params: 2,554,968
-# Trainable params: 2,542,856
-# Non-trainable params: 12,112
-# __________________________________________________________________________________________________
-# # Mine
-# =================================================================
-# Total params: 2,554,968
-# Trainable params: 2,542,856
-# Non-trainable params: 12,112
-# _________________________________________________________________
-
-
-# with squeeze and excite, not presetn in pytorch or tf in v3_small
-
-
-# =================================================================
-# Total params: 2,720,856
-# Trainable params: 2,708,744
-# Non-trainable params: 12,112
-# _________________________________________________________________
+    # for alpha in [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]:
+    #     model = create_mobilenet_v3(large=True, alpha=alpha)
+    #     # model = create_mobilenet_v3(large=False, alpha=alpha)
+    #     print(f"Alpha: {alpha} --->", model.count_params())

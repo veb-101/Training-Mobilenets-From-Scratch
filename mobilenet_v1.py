@@ -186,5 +186,6 @@ def create_mobilenet_v1(
 
 
 if __name__ == "__main__":
+
     model = create_mobilenet_v1(alpha=1.0, pooling="average", use_dense=False)
     model.summary()
