@@ -10,9 +10,10 @@ from tensorflow.keras.layers import (
     Dense,
     Flatten,
     Dropout,
+    Activation
 )
 
-
+# https://www.tensorflow.org/guide/mixed_precision#ensuring_gpu_tensor_cores_are_used
 class DepthWise_PointWise_Layer(Layer):
     def __init__(self, out_channels=64, dw_stride=1, padding="same", **kwargs):
         super().__init__(**kwargs)
@@ -55,7 +56,7 @@ def create_mobilenet_v1(
     input_shape=(224, 224, 3),
     alpha=1.0,
     num_classes=1000,
-    pooling="avg",
+    pooling="average",
     dropout_rate=0.3,
     use_dense=True,
 ):
@@ -97,9 +98,11 @@ def create_mobilenet_v1(
         conv_out = Conv2D(filters=num_classes, kernel_size=1, strides=1, activation="softmax")(drop_out)
         final = Flatten()(conv_out)
     else:
-        final = Dense(units=num_classes, activation="softmax", name="FC")(drop_out)
-
-    mobilenet_v1_model = Model(inputs=input_layer, outputs=final, name="MobileNet-V1")
+        final = Dense(units=num_classes, name="Dense_out")(drop_out)
+       
+    outputs = Activation('softmax', dtype='float32', name='predictions')(final)   
+   
+    mobilenet_v1_model = Model(inputs=input_layer, outputs=outputs, name="MobileNet-V1")
 
     return mobilenet_v1_model
 

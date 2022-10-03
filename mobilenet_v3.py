@@ -16,9 +16,11 @@ from tensorflow.keras.layers import (
     GlobalAveragePooling2D,
     Dense,
     Multiply,
+    Activation,
 )
 
 
+# https://www.tensorflow.org/guide/mixed_precision#ensuring_gpu_tensor_cores_are_used
 def _make_divisible(v, divisor=8, min_value=None):
     if min_value is None:
         min_value = divisor
@@ -29,7 +31,7 @@ def _make_divisible(v, divisor=8, min_value=None):
     return new_v
 
 
-class SqeezeExcitation(Layer):
+class SqueezeExcitation(Layer):
     def __init__(self, num_channels=64, use_bias=False, **kwargs):
         super().__init__(**kwargs)
 
@@ -108,7 +110,7 @@ class InvertedResidualBlock(Layer):
         self.sequential_block.add(self.activation_fn())
 
         if self.apply_SE:
-            self.sequential_block.add(SqeezeExcitation(num_channels=self.expansion_size, use_bias=True))
+            self.sequential_block.add(SqueezeExcitation(num_channels=self.expansion_size, use_bias=True))
 
         self.sequential_block.add(Conv2D(filters=self.num_out_channels, kernel_size=1, strides=1, use_bias=False))
         self.sequential_block.add(BatchNormalization())
@@ -247,7 +249,7 @@ def create_mobilenet_v3(
     out = HardSwish()(out)
 
     if use_SE:
-        out = SqeezeExcitation(num_channels=last_conv_channel, use_bias=False)(out)
+        out = SqueezeExcitation(num_channels=last_conv_channel, use_bias=False)(out)
     # ========================================================================================
     out = pooling_layer(out)
     # ========================================================================================
@@ -260,9 +262,11 @@ def create_mobilenet_v3(
         conv_out = Conv2D(filters=num_classes, kernel_size=1, strides=1, activation="softmax", name="Conv_out")(drop_out)
         final = Flatten()(conv_out)
     else:
-        final = Dense(units=num_classes, activation="softmax", name="Dense_out")(drop_out)
+        final = Dense(units=num_classes, activation="linear", name="Dense_out")(drop_out)
 
-    mobilenet_v3_model = Model(inputs=input_layer, outputs=final, name="MobileNet-V3")
+    outputs = Activation("softmax", dtype="float32", name="predictions")(final)
+
+    mobilenet_v3_model = Model(inputs=input_layer, outputs=outputs, name="MobileNet-V3")
 
     return mobilenet_v3_model
 

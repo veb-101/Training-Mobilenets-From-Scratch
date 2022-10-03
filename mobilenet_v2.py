@@ -10,9 +10,10 @@ from tensorflow.keras.layers import (
     Dense,
     Flatten,
     Dropout,
+    Activation
 )
 
-
+# https://www.tensorflow.org/guide/mixed_precision#ensuring_gpu_tensor_cores_are_used
 def _make_divisible(v, divisor=8, min_value=None):
     if min_value is None:
         min_value = divisor
@@ -148,9 +149,11 @@ def create_mobilenet_v2(
         conv_out = Conv2D(filters=num_classes, kernel_size=1, strides=1, activation="softmax", name="Conv_out")(drop_out)
         final = Flatten()(conv_out)
     else:
-        final = Dense(units=num_classes, activation="softmax", name="Dense_out")(drop_out)
+        final = Dense(units=num_classes, name="Dense_out")(drop_out)
+       
+    outputs = Activation('softmax', dtype='float32', name='predictions')(final)
 
-    mobilenet_v2_model = Model(inputs=input_layer, outputs=final, name="MobileNet-V2")
+    mobilenet_v2_model = Model(inputs=input_layer, outputs=outputs, name="MobileNet-V2")
 
     return mobilenet_v2_model
 
